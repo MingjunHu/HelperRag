@@ -1,0 +1,27 @@
+model:
+  name: "glm-4-flash"
+  api_key: "the key of glm"
+  parameters:
+    max_tokens: 120000
+    temperature: 0.5
+    streaming: True
+
+database:
+  DB_URI: "../db/milvus/milvus_example.db"
+  host: "localhost"
+  port: "19530"  # Milvus 默认端口
+
+folder: 
+  uploads: "../uploads" # 上传文件夹
+  input: "../input" # 输入文件夹
+  backup: "../backup" # 备份文件夹
+
+
+session_manager:
+  expiration_time_minutes: 5  # 设置会话过期时间为 30 分钟# 假设提供了一个会话管理器实例
+
+openai:
+  api_key: "the key of openai"  # OpenAI API 密钥
+  llm: "gpt-4o-mini"
+  embedding: "text-embedding-3-small"
+  
