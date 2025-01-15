@@ -15,15 +15,17 @@ knowageagent=KnowageAgent()
 from langchain_milvus import Milvus
 
 # 配置上传文件保存目录（使用绝对路径）
-# UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'uploads')
-# BACKUP_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'backup')
+UPLOAD_FOLDER = model_handler.config.get("folder").get("uploads")
+INPUT_FOLDER = model_handler.config.get("folder").get("input")
+BACKUP_FOLDER = model_handler.config.get("folder").get("backup")
 
-# # 创建必要的目录
-# for folder in [UPLOAD_FOLDER, BACKUP_FOLDER]:
-#     if not os.path.exists(folder):
-#         os.makedirs(folder)
-# print(f"Upload directory: {UPLOAD_FOLDER}")
-# print(f"Backup directory: {BACKUP_FOLDER}")
+# 创建必要的目录
+for folder in [UPLOAD_FOLDER, INPUT_FOLDER,BACKUP_FOLDER]:
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+print(f"Upload directory: {UPLOAD_FOLDER}")
+print(f"Input directory: {INPUT_FOLDER}")
+print(f"Backup directory: {BACKUP_FOLDER}")
 
 # 文件上传限制
 MAX_FILES = 100
