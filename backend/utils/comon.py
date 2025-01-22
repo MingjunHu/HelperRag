@@ -183,18 +183,6 @@ process_and_move_files(source_directory, target_directory)
 
 
 #执行重排模型
-
-# 加载 bge-reranker-large 模型
-
-# 查询和候选文档
-# query = "What is the capital of France?"
-# documents = [
-#     "Paris is the capital of France.",
-#     "France is a country in Europe.",
-#     "The Eiffel Tower is in Paris.",
-#     "London is the capital of England."
-# ]
-
 def reranker_maker(query, documents, n=5):
     #1:maidalun1020/bce-reranker-base_v1;2:BAAI/bge-reranker-v2-minicpm-layerwise;3:BAAI/bge-reranker-large
     model = CrossEncoder('maidalun1020/bce-reranker-base_v1')
@@ -251,7 +239,6 @@ def answer_maker(first_ask,asks,embeddings,DB_URI):
         total_docs.extend(documents)
 
         answer_texts=answer_texts+answer_text+"\n"
-
 
         # print(ask+"    ||   "+answer_text)
         total_files=total_files|file_lists
