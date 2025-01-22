@@ -1,5 +1,6 @@
 # Ignore config file
 config/config.yaml
+bfg.jar
 
 # Ignore data directories and their subdirectories
 db/**
@@ -7,6 +8,7 @@ uploads/**
 input/**
 backup/**
 backend/logs/**
+..bfg-report/**
 
 # Ignore IDE specific files
 .idea/
