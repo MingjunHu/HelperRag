@@ -1,6 +1,6 @@
 model:
   name: "glm-4-flash"
-  api_key: "model api key"
+  api_key: "63d26e85748be2c559bd60c81e69591a.gJagRNlOPIodvCj1"
   parameters:
     max_tokens: 120000
     temperature: 0.5
@@ -21,6 +21,6 @@ session_manager:
   expiration_time_minutes: 5  # 设置会话过期时间为 30 分钟# 假设提供了一个会话管理器实例
 
 openai:
-  api_key: "openai api key"  # OpenAI API 密钥
+  api_key: "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"  # OpenAI API 密钥
   llm: "gpt-4o-mini"
   embedding: "text-embedding-3-small"
