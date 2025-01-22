@@ -6,6 +6,7 @@ db/**
 uploads/**
 input/**
 backup/**
+backend/logs/**
 
 # Ignore IDE specific files
 .idea/
