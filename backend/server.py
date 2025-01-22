@@ -18,14 +18,17 @@ from langchain_milvus import Milvus
 UPLOAD_FOLDER = model_handler.config.get("folder").get("uploads")
 INPUT_FOLDER = model_handler.config.get("folder").get("input")
 BACKUP_FOLDER = model_handler.config.get("folder").get("backup")
+DB_URI = model_handler.config.get("database").get("DB_URI")
+DB_FOLDER = os.path.dirname(DB_URI)  # 获取数据库文件所在目录
 
 # 创建必要的目录
-for folder in [UPLOAD_FOLDER, INPUT_FOLDER,BACKUP_FOLDER]:
+for folder in [UPLOAD_FOLDER, INPUT_FOLDER, BACKUP_FOLDER]:
     if not os.path.exists(folder):
         os.makedirs(folder)
 print(f"Upload directory: {UPLOAD_FOLDER}")
 print(f"Input directory: {INPUT_FOLDER}")
 print(f"Backup directory: {BACKUP_FOLDER}")
+print(f"Database directory: {DB_FOLDER}")
 
 # 文件上传限制
 MAX_FILES = 100
@@ -141,6 +144,47 @@ def list_vectorized_documents():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/list_db_files', methods=['GET'])
+def list_db_files():
+    try:
+        files = []
+        print(f"Checking DB_FOLDER: {DB_FOLDER}")  # 打印数据库目录路径
+        
+        if os.path.exists(DB_FOLDER):
+            print(f"DB_FOLDER exists, listing contents...")  # 确认目录存在
+            for root, dirs, filenames in os.walk(DB_FOLDER):
+                print(f"Walking directory: {root}")  # 打印当前遍历的目录
+                print(f"Found directories: {dirs}")  # 打印子目录列表
+                print(f"Found files: {filenames}")  # 打印文件列表
+                
+                for filename in filenames:
+                    file_path = os.path.join(root, filename)
+                    # 计算相对路径
+                    rel_path = os.path.relpath(file_path, DB_FOLDER)
+                    file_info = {
+                        "filename": rel_path,  # 使用相对路径作为文件名
+                        "size": os.path.getsize(file_path)
+                    }
+                    files.append(file_info)
+                    print(f"Added file: {rel_path}")  # 打印添加的文件
+        else:
+            print(f"DB_FOLDER does not exist!")  # 目录不存在的情况
+            # 尝试创建目录
+            try:
+                os.makedirs(DB_FOLDER)
+                print(f"Created DB_FOLDER: {DB_FOLDER}")
+            except Exception as e:
+                print(f"Error creating DB_FOLDER: {str(e)}")
+        
+        print(f"Total files found: {len(files)}")  # 打印找到的文件总数
+        return jsonify({
+            "files": files,
+            "total": len(files)
+        }), 200
+    except Exception as e:
+        print(f"Error listing DB files: {str(e)}")  # 添加错误日志
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/delete_all_documents', methods=['POST'])
 def delete_all_documents():
     try:
@@ -162,6 +206,43 @@ def delete_all_documents():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/delete_all_data', methods=['POST'])
+def delete_all_data():
+    try:
+        deleted_files = {
+            'backup': 0,
+            'db': 0
+        }
+        
+        # 删除backup目录下的文件
+        if os.path.exists(BACKUP_FOLDER):
+            for filename in os.listdir(BACKUP_FOLDER):
+                file_path = os.path.join(BACKUP_FOLDER, filename)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+                    deleted_files['backup'] += 1
+        
+        # 删除数据库目录下的文件
+        if os.path.exists(DB_FOLDER):
+            for root, dirs, files in os.walk(DB_FOLDER, topdown=False):
+                for name in files:
+                    os.remove(os.path.join(root, name))
+                    deleted_files['db'] += 1
+                for name in dirs:
+                    dir_path = os.path.join(root, name)
+                    if os.path.exists(dir_path):
+                        shutil.rmtree(dir_path)
+        
+        return jsonify({
+            "message": f"成功删除 backup 目录下 {deleted_files['backup']} 个文件，数据库目录下 {deleted_files['db']} 个文件",
+            "deleted_files": deleted_files
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "error": f"删除数据时出错: {str(e)}"
+        }), 500
+
 @app.route('/vectorize_documents', methods=['POST'])
 def vectorize_documents():
     try:
@@ -173,16 +254,10 @@ def vectorize_documents():
                     file_vectorization_status[filename] = VECTORIZATION_STATUS["PROCESSING"]
                     processing_count += 1
                     
-                    # TODO: 启动异步任务处理向量化
-                    # 1. 读取文件内容
-                    # 2. 文本分块
-                    # 3. 调用向量化模型
-                    # 4. 存储到向量数据库
-                    # 5. 更新状态为已向量化
                     source_directory = model_handler.config.get("folder").get("uploads")
-                    target_directory = model_handler.config.get("folder").get("input")#UPLOAD_FOLDER+"/../input"
+                    target_directory = model_handler.config.get("folder").get("input")
                     #备份目录
-                    backup_directory = model_handler.config.get("folder").get("backup")#UPLOAD_FOLDER+"/../backup"
+                    backup_directory = model_handler.config.get("folder").get("backup")
                     #上传文件路径
                     source_file_path = os.path.join(source_directory, filename)
                     #目标文件路径
@@ -191,7 +266,6 @@ def vectorize_documents():
                     backup_file_path = os.path.join(backup_directory, filename)
                     #预处理文件，使用markitdown，移动文件
                     comon.movefiel_for_MakItDown(source_file_path, target_file_path)
-
 
                     try:
                         text=comon.getText_4_path(target_file_path)

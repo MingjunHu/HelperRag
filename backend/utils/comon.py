@@ -195,8 +195,9 @@ process_and_move_files(source_directory, target_directory)
 #     "London is the capital of England."
 # ]
 
-def reranker_maker(query,documents):
-    model = CrossEncoder('BAAI/bge-reranker-large')
+def reranker_maker(query, documents, n=5):
+    #1:maidalun1020/bce-reranker-base_v1;2:BAAI/bge-reranker-v2-minicpm-layerwise;3:BAAI/bge-reranker-large
+    model = CrossEncoder('maidalun1020/bce-reranker-base_v1')
     # 构建输入数据 (query, document) pairs
     pairs = [[query, doc] for doc in documents]
 
@@ -205,8 +206,11 @@ def reranker_maker(query,documents):
 
     # 打印排序结果
     sorted_docs_with_scores = sorted(zip(documents, scores), key=lambda x: x[1], reverse=True)
-    for doc, score in sorted_docs_with_scores:
-        print(f"Score: {score:.4f} - Document: {doc}")
+    # for doc, score in sorted_docs_with_scores:
+    #     print(f"Score: {score:.4f} - Document: {doc}")
+    
+    # 返回前n个排序后的文档
+    return [doc for doc, _ in sorted_docs_with_scores[:n]]
 
 
 def query_4_text(query_text,embeddings,DB_URI):
@@ -245,7 +249,6 @@ def answer_maker(first_ask,asks,embeddings,DB_URI):
         answer_text,file_lists,documents=query_4_text(ask,embeddings,DB_URI)
 
         total_docs.extend(documents)
-        #此处可以插入重排模型做处理
 
         answer_texts=answer_texts+answer_text+"\n"
 
@@ -253,7 +256,10 @@ def answer_maker(first_ask,asks,embeddings,DB_URI):
         # print(ask+"    ||   "+answer_text)
         total_files=total_files|file_lists
     
-    return ask_texts,answer_texts,total_files,total_docs
+    #模型模型做重排处理
+    reranker_total_docs=reranker_maker(first_ask,total_docs,5)
+    
+    return ask_texts,answer_texts,total_files,reranker_total_docs
 
 def the_end_answer(ask_texts,answer_texts,answer_prompt_path):
 #在answer_maker之后用

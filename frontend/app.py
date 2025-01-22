@@ -39,6 +39,10 @@ css = """
     background: rgba(0,0,0,0.5);
     z-index: -1;
 }
+.warning-text {
+    color: #ff4444;
+    font-weight: bold;
+}
 """
 
 # 发送消息到后端
@@ -72,12 +76,12 @@ def validate_files(files):
 
 def submit_documents(files):
     if not files:
-        return "请选择文件", None, None
+        return "请选择文件", None, None, None
     
     # 验证文件
     is_valid, error_message = validate_files(files)
     if not is_valid:
-        return error_message, None, None
+        return error_message, None, None, None
     
     # 上传文件
     uploaded_files = []
@@ -91,16 +95,16 @@ def submit_documents(files):
             if response.status_code == 200:
                 uploaded_files.append(original_filename)
             else:
-                return f"上传失败: {original_filename} - {response.text}", None, None
+                return f"上传失败: {original_filename} - {response.text}", None, None, None
         except Exception as e:
-            return f"上传出错: {original_filename} - {str(e)}", None, None
+            return f"上传出错: {original_filename} - {str(e)}", None, None, None
         finally:
             # 确保文件被关闭
             if 'files_dict' in locals() and 'file' in files_dict:
                 files_dict['file'][1].close()
     
     # 刷新文件列表
-    return f"成功上传以下文件:\n" + "\n".join(uploaded_files), get_file_list(), get_vectorized_list()
+    return f"成功上传以下文件:\n" + "\n".join(uploaded_files), get_file_list(), get_vectorized_list(), get_db_files()
 
 def get_file_list():
     try:
@@ -153,6 +157,32 @@ def get_vectorized_list():
         print(f"Error fetching vectorized file list: {str(e)}")
         return []
 
+def get_db_files():
+    try:
+        response = requests.get(f"{BACKEND_API}/list_db_files")
+        if response.status_code == 200:
+            data = response.json()
+            files = data.get('files', [])
+            
+            # 格式化文件信息为表格数据
+            formatted_files = []
+            for file in files:
+                size_kb = file['size'] / 1024
+                # modified_time = datetime.fromtimestamp(file['modified_time']).strftime('%Y-%m-%d %H:%M:%S')
+                formatted_files.append([
+                    file['filename'],
+                    f"{size_kb:.2f} KB",
+                    # modified_time,
+                    # file['type']
+                ])
+            
+            return formatted_files
+        else:
+            return []
+    except Exception as e:
+        print(f"Error fetching database file list: {str(e)}")
+        return []
+
 def delete_all_files():
     try:
         response = requests.post(f"{BACKEND_API}/delete_all_documents")
@@ -163,11 +193,26 @@ def delete_all_files():
             message = f"成功删除所有文件，共 {deleted_count} 个文件"
             
             # 刷新文件列表
-            return message, get_file_list(), get_vectorized_list()
+            return message, get_file_list(), get_vectorized_list(), get_db_files()
         else:
-            return f"删除失败: {response.text}", None, None
+            return f"删除失败: {response.text}", None, None, None
     except Exception as e:
-        return f"删除出错: {str(e)}", None, None
+        return f"删除出错: {str(e)}", None, None, None
+
+def delete_all_data():
+    try:
+        response = requests.post(f"{BACKEND_API}/delete_all_data")
+        
+        if response.status_code == 200:
+            result = response.json()
+            message = result.get('message', '')
+            
+            # 刷新文件列表
+            return message, get_file_list(), get_vectorized_list(), get_db_files()
+        else:
+            return f"删除失败: {response.text}", None, None, None
+    except Exception as e:
+        return f"删除出错: {str(e)}", None, None, None
 
 def vectorize_documents():
     try:
@@ -179,14 +224,14 @@ def vectorize_documents():
             message = f"开始向量化处理，共 {processing_count} 个文件"
             
             # 刷新文件列表
-            return message, get_file_list(), get_vectorized_list()
+            return message, get_file_list(), get_vectorized_list(), get_db_files()
         else:
-            return f"向量化处理失败: {response.text}", None, None
+            return f"向量化处理失败: {response.text}", None, None, None
     except Exception as e:
-        return f"向量化处理出错: {str(e)}", None, None
+        return f"向量化处理出错: {str(e)}", None, None, None
 
 def refresh_lists():
-    return get_file_list(), get_vectorized_list()
+    return get_file_list(), get_vectorized_list(), get_db_files()
 
 # Gradio 界面
 with gr.Blocks(css=css) as demo:
@@ -204,7 +249,7 @@ with gr.Blocks(css=css) as demo:
     
     gr.Markdown("# HelperRag Chatbot")
 
-    with gr.Tab("Chat"):
+    with gr.Tab("搜索问答"):
         chatbot = gr.Chatbot(type='messages')
         msg = gr.Textbox(placeholder="请输入你的问题...")
         clear = gr.Button("Clear")
@@ -224,7 +269,7 @@ with gr.Blocks(css=css) as demo:
         )
         clear.click(lambda: None, None, chatbot, queue=False)
 
-    with gr.Tab("Upload Document"):
+    with gr.Tab("数据操作"):
         gr.Markdown("### 文件上传（限制：最多100个txt文件）")
         with gr.Row():
             file_input = gr.File(file_count="multiple", file_types=[".txt"])
@@ -243,16 +288,26 @@ with gr.Blocks(css=css) as demo:
         )
         
         with gr.Row():
-            delete_button = gr.Button("删除所有文件", variant="stop")
-            vectorize_button = gr.Button("向量化知识库", variant="primary")
+            delete_button = gr.Button("删除待向量文件", variant="stop")
+            vectorize_button = gr.Button("文件向量化入库", variant="primary")
+            delete_data_button = gr.Button("清空数据库", variant="stop")
         
-        # 已向量化文件列表（放在最下方）
+        # 已向量化文件列表
         gr.Markdown("### 已向量化文件列表")
         vectorized_list = gr.Dataframe(
             headers=["文件名", "大小", "修改时间"],
             type="array",
             interactive=False,
             label="已向量化文件列表"
+        )
+        
+        # 数据库文件列表
+        gr.Markdown("### 数据库文件列表")
+        db_file_list = gr.Dataframe(
+            headers=["文件名", "大小"],
+            type="array",
+            interactive=False,
+            label="数据库文件列表"
         )
         
         # 事件处理
@@ -278,7 +333,9 @@ with gr.Blocks(css=css) as demo:
                 return delete_all_files()
             elif action == "vectorize":
                 return vectorize_documents()
-            return None, None, None
+            elif action == "delete_data":
+                return delete_all_data()
+            return None, None, None, None
         
         # 上传文件确认流程
         upload_button.click(
@@ -289,13 +346,28 @@ with gr.Blocks(css=css) as demo:
         
         # 删除确认流程
         delete_button.click(
-            lambda: show_confirm("确认要删除所有文件吗？此操作不可恢复！", "delete"),
+            lambda: show_confirm("确认要删除待向量化的文件吗？此操作不可恢复！", "delete"),
             outputs=[confirm_dialog, confirm_text, current_action, current_files]
         )
         
         # 向量化确认流程
         vectorize_button.click(
-            lambda: show_confirm("确认要开始向量化处理吗？", "vectorize"),
+            lambda: show_confirm("确认要将文件向量化并入库吗？", "vectorize"),
+            outputs=[confirm_dialog, confirm_text, current_action, current_files]
+        )
+        
+        # 数据删除确认流程
+        delete_data_button.click(
+            lambda: show_confirm(
+                """<div class='warning-text'>警告：此操作将清空数据库！</div>
+                <br/>
+                这将删除：
+                1. backup目录下的所有文件
+                2. 数据库目录下的所有文件
+                <br/>
+                此操作不可恢复！确定要继续吗？""",
+                "delete_data"
+            ),
             outputs=[confirm_dialog, confirm_text, current_action, current_files]
         )
         
@@ -303,7 +375,7 @@ with gr.Blocks(css=css) as demo:
         confirm_yes.click(
             handle_confirm,
             inputs=[current_action, current_files],
-            outputs=[output_message, file_list, vectorized_list]
+            outputs=[output_message, file_list, vectorized_list, db_file_list]
         ).then(
             hide_confirm,
             outputs=[confirm_dialog, current_action, current_files]
@@ -318,13 +390,13 @@ with gr.Blocks(css=css) as demo:
         # 刷新按钮
         refresh_button.click(
             refresh_lists,
-            outputs=[file_list, vectorized_list]
+            outputs=[file_list, vectorized_list, db_file_list]
         )
 
         # 页面加载时自动刷新文件列表
         demo.load(
             refresh_lists,
-            outputs=[file_list, vectorized_list]
+            outputs=[file_list, vectorized_list, db_file_list]
         )
 
 demo.launch(server_port=8002)

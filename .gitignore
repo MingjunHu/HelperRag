@@ -1,0 +1,22 @@
+# Ignore config file
+config/config.yaml
+
+# Ignore IDE specific files
+.idea/
+.vscode/
+
+# Ignore Python compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore virtual environments
+venv/
+env/
+.venv/
+
+# Ignore log files
+*.log
+
+# Ignore local development files
+local_settings.py
