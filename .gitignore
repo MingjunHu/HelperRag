@@ -1,11 +1,11 @@
 # Ignore config file
 config/config.yaml
 
-# Ignore data directories
-db/
-uploads/
-input/
-backup/
+# Ignore data directories and their subdirectories
+db/**
+uploads/**
+input/**
+backup/**
 
 # Ignore IDE specific files
 .idea/
