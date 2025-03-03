@@ -1,0 +1,5 @@
+feat: Release v1.2.0
+- 更新 Milvus 数据库配置
+- 更新 GLM-4 模型、bge-m3向量模型、DeepSeek模型等配置
+- 优化 API 接口配置，实现通过mysql数据库导入知识库等动能，
+- 更新会话管理时间设置
